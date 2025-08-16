@@ -1,0 +1,84 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Blacky <64606171+Blaackyy@users.noreply.github.com>
+Date: Fri, 15 Aug 2025 21:39:19 -0400
+Subject: [PATCH] Let plugins adjust the player tracking distance
+
+
+diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
+index 150999a0b922b6c830cc2a67fc1fb44f1d8c210f..f14391b9e232c7dd7ae6d0f738e5f63614e1b58e 100644
+--- a/src/main/java/net/minecraft/server/level/ChunkMap.java
++++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
+@@ -1432,7 +1432,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+                 int viewChunks = ChunkMap.this.getPlayerViewDistance(player);
+                 double viewCap = viewChunks * 16.0;
+ 
+-                double desired = isLongRangeViewer(player) ? 128.0 : this.getEffectiveRange();
++                double desired = isLongRangeViewer(player) ? player.getBukkitEntity().getPlayerTrackingDistance() : this.getEffectiveRange();
+                 double d0 = Math.min(desired, viewCap);
+                 double d2 = d0 * d0;
+                 boolean flag = distancedPlayer.distanceSqr <= d2 && this.entity.broadcastToPlayer(player) && ChunkMap.this.isChunkTracked(player, this.entity.chunkPosition().x, this.entity.chunkPosition().z);
+@@ -1440,7 +1440,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+                 if (flag && level.paperConfig().entities.trackingRangeY.enabled) {
+                     double rangeY = level.paperConfig().entities.trackingRangeY.get(this.entity, -1);
+                     if (rangeY != -1) {
+-                        if (isLongRangeViewer(player)) rangeY = Math.max(rangeY, 128.0);
++                        if (isLongRangeViewer(player)) rangeY = Math.max(rangeY, player.getBukkitEntity().getPlayerTrackingDistance());
+                         double vec3d_dy = player.getY() - this.entity.getY();
+                         flag = flag && (vec3d_dy * vec3d_dy <= rangeY * rangeY);
+                     }
+@@ -1549,7 +1549,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+                 int viewChunks = ChunkMap.this.getPlayerViewDistance(player);
+                 double viewCap = viewChunks * 16.0;
+ 
+-                double desired = isLongRangeViewer(player) ? 128.0 : this.getEffectiveRange();
++                double desired = isLongRangeViewer(player) ? player.getBukkitEntity().getPlayerTrackingDistance() : this.getEffectiveRange();
+                 double d0 = Math.min(desired, viewCap);
+                 double d2 = d0 * d0;
+                 boolean flag = d1 <= d2 && this.entity.broadcastToPlayer(player) && ChunkMap.this.isChunkTracked(player, this.entity.chunkPosition().x, this.entity.chunkPosition().z);
+@@ -1557,7 +1557,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+                 if (flag && level.paperConfig().entities.trackingRangeY.enabled) {
+                     double rangeY = level.paperConfig().entities.trackingRangeY.get(this.entity, -1);
+                     if (rangeY != -1) {
+-                        if (isLongRangeViewer(player)) rangeY = Math.max(rangeY, 128.0);
++                        if (isLongRangeViewer(player)) rangeY = Math.max(rangeY, player.getBukkitEntity().getPlayerTrackingDistance());
+                         double dy = player.getY() - this.entity.getY();
+                         flag = flag && (dy * dy <= rangeY * rangeY);
+                     }
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+index cf651f132a125cded54bd36014da8b61dd571f5a..465224c5d6b04076935b7c313be976de48031326 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+@@ -212,11 +212,13 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+     public org.bukkit.event.player.PlayerResourcePackStatusEvent.Status resourcePackStatus; // Paper - more resource pack API
+     private static final boolean DISABLE_CHANNEL_LIMIT = System.getProperty("paper.disableChannelLimit") != null; // Paper - add a flag to disable the channel limit
+     private long lastSaveTime; // Paper - getLastPlayed replacement API
++    private int playerTrackingDistance; // ShreddedPaper - let us define the player tracking range dynamically
+ 
+     public CraftPlayer(CraftServer server, ServerPlayer entity) {
+         super(server, entity);
+ 
+         this.firstPlayed = System.currentTimeMillis();
++        this.playerTrackingDistance = org.spigotmc.TrackingRange.getEntityTrackingRange(entity, entity.getType().clientTrackingRange() * 16); // ShreddedPaper - let us define the player tracking range dynamically
+     }
+ 
+     public GameProfile getProfile() {
+@@ -3567,6 +3569,19 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+         this.getHandle().setSendViewDistance(viewDistance);
+     }
+ 
++    // ShreddedPaper start - let us define the player tracking range dynamically
++
++    @Override
++    public void setPlayerTrackingDistance(int trackingDistance) {
++        this.playerTrackingDistance = trackingDistance;
++    }
++
++    @Override
++    public int getPlayerTrackingDistance() {
++        return this.playerTrackingDistance;
++    }
++    // ShreddedPaper end - let us define the player tracking range dynamically
++
+     // Purpur start
+     @Override
+     public boolean usesPurpurClient() {

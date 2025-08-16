@@ -1,0 +1,35 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Blacky <64606171+Blaackyy@users.noreply.github.com>
+Date: Fri, 15 Aug 2025 21:39:19 -0400
+Subject: [PATCH] Let plugins adjust the player tracking distance
+
+
+diff --git a/src/main/java/org/bukkit/entity/Player.java b/src/main/java/org/bukkit/entity/Player.java
+index c41b5e13c519b3f48cbc866ad77b153cdde13136..5d0a4354649876e12049dba0ff955dae767d37b6 100644
+--- a/src/main/java/org/bukkit/entity/Player.java
++++ b/src/main/java/org/bukkit/entity/Player.java
+@@ -3395,6 +3395,24 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
+     public void setSendViewDistance(int viewDistance);
+     // Paper end
+ 
++    // ShreddedPaper start - let us define the player tracking range dynamically
++
++    /**
++     * Sets the player tracking distance for this player
++     * <p>
++     *     Tracking distance is the distance until people will be rendered to the player
++     * </p>
++     * @param trackingDistance In blocks, default is 48 as set in spigot.yml
++     */
++    public void setPlayerTrackingDistance(int trackingDistance);
++
++    /**
++     * Gets the player tracking distance for this player
++     * @return the tracking distance in blocks
++     */
++    public int getPlayerTrackingDistance();
++    // ShreddedPaper end - let us define the player tracking range dynamically
++
+     /**
+      * Update the list of commands sent to the client.
+      * <br>
