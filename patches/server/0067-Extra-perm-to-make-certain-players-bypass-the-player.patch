@@ -1,0 +1,83 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Blacky <64606171+Blaackyy@users.noreply.github.com>
+Date: Fri, 15 Aug 2025 17:14:16 -0400
+Subject: [PATCH] Extra perm to make certain players bypass the player tracking
+ config range
+
+
+diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
+index 7bb63bf76edb8ab4de19d1f5cf77649dd16d7c4a..150999a0b922b6c830cc2a67fc1fb44f1d8c210f 100644
+--- a/src/main/java/net/minecraft/server/level/ChunkMap.java
++++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
+@@ -1428,16 +1428,21 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+                 }
+                 if (player == this.entity) continue;
+                 DistancedServerPlayer distancedPlayer = new DistancedServerPlayer(player, this.entity);
+-                int i = ChunkMap.this.getPlayerViewDistance(player);
+-                double d0 = (double) Math.min(this.getEffectiveRange(), i * 16);
++                // ShreddedPaper start - extra perm to make certain players bypass the config range
++                int viewChunks = ChunkMap.this.getPlayerViewDistance(player);
++                double viewCap = viewChunks * 16.0;
++
++                double desired = isLongRangeViewer(player) ? 128.0 : this.getEffectiveRange();
++                double d0 = Math.min(desired, viewCap);
+                 double d2 = d0 * d0;
+                 boolean flag = distancedPlayer.distanceSqr <= d2 && this.entity.broadcastToPlayer(player) && ChunkMap.this.isChunkTracked(player, this.entity.chunkPosition().x, this.entity.chunkPosition().z);
+                 // Paper start - Configurable entity tracking range by Y
+                 if (flag && level.paperConfig().entities.trackingRangeY.enabled) {
+                     double rangeY = level.paperConfig().entities.trackingRangeY.get(this.entity, -1);
+                     if (rangeY != -1) {
++                        if (isLongRangeViewer(player)) rangeY = Math.max(rangeY, 128.0);
+                         double vec3d_dy = player.getY() - this.entity.getY();
+-                        flag = vec3d_dy * vec3d_dy <= rangeY * rangeY;
++                        flag = flag && (vec3d_dy * vec3d_dy <= rangeY * rangeY);
+                     }
+                 }
+                 // Paper end - Configurable entity tracking range by Y
+@@ -1529,28 +1534,35 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+ 
+         }
+ 
++        private static boolean isLongRangeViewer(ServerPlayer p) {
++            return p.getBukkitEntity().hasPermission("shreddedpaper.longdistance");
++        }
++
+         public void updatePlayer(ServerPlayer player) {
+             org.spigotmc.AsyncCatcher.catchOp("player tracker update"); // Spigot
+             if (player != this.entity) {
+-                // Paper start - remove allocation of Vec3D here
+-                // Vec3 vec3d = player.position().subtract(this.entity.position());
+-                double vec3d_dx = player.getX() - this.entity.getX();
+-                double vec3d_dz = player.getZ() - this.entity.getZ();
+-                // Paper end - remove allocation of Vec3D here
+-                int i = ChunkMap.this.getPlayerViewDistance(player);
+-                double d0 = (double) Math.min(this.getEffectiveRange(), i * 16);
+-                double d1 = vec3d_dx * vec3d_dx + vec3d_dz * vec3d_dz; // Paper
++                // ShreddedPaper start - extra perm to make certain players bypass the config range
++                double dx = player.getX() - this.entity.getX();
++                double dz = player.getZ() - this.entity.getZ();
++                double d1 = dx * dx + dz * dz;
++
++                int viewChunks = ChunkMap.this.getPlayerViewDistance(player);
++                double viewCap = viewChunks * 16.0;
++
++                double desired = isLongRangeViewer(player) ? 128.0 : this.getEffectiveRange();
++                double d0 = Math.min(desired, viewCap);
+                 double d2 = d0 * d0;
+                 boolean flag = d1 <= d2 && this.entity.broadcastToPlayer(player) && ChunkMap.this.isChunkTracked(player, this.entity.chunkPosition().x, this.entity.chunkPosition().z);
+                 // Paper start - Configurable entity tracking range by Y
+                 if (flag && level.paperConfig().entities.trackingRangeY.enabled) {
+                     double rangeY = level.paperConfig().entities.trackingRangeY.get(this.entity, -1);
+                     if (rangeY != -1) {
+-                        double vec3d_dy = player.getY() - this.entity.getY();
+-                        flag = vec3d_dy * vec3d_dy <= rangeY * rangeY;
++                        if (isLongRangeViewer(player)) rangeY = Math.max(rangeY, 128.0);
++                        double dy = player.getY() - this.entity.getY();
++                        flag = flag && (dy * dy <= rangeY * rangeY);
+                     }
+                 }
+-                // Paper end - Configurable entity tracking range by Y
++                // ShreddedPaper end - extra perm to make certain players bypass the config range
+ 
+                 // CraftBukkit start - respect vanish API
+                 if (flag && !player.getBukkitEntity().canSee(this.entity.getBukkitEntity())) { // Paper - only consider hits
